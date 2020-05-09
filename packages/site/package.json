@@ -6,7 +6,8 @@
   "scripts": {
     "start": "next",
     "build": "next build",
-    "start:prod": "next start"
+    "start:prod": "next start",
+    "clean": "rm -rf .next node_modules"
   },
   "keywords": [],
   "author": "",

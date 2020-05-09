@@ -1,127 +1,125 @@
 import { ApolloServer, gql } from 'apollo-server'
-import { Credentials, SimpleSigner } from 'uport-credentials'
-import { message, transport } from 'uport-transports'
-import { Resolver } from 'did-resolver'
-import { getResolver } from 'ethr-did-resolver'
-import ngrok from 'ngrok'
+import * as uuid from 'uuid'
 
-
-// Make new keys...
-// const { did, privateKey } = Credentials.createIdentity()
-// console.log(did)
-// console.log(privateKey)
-
-const credentials = new Credentials({
-  did: 'did:ethr:0x018d7f598960a64a4b674774522c4b0582bc398a',
-  signer: SimpleSigner('5d554e1cb77269c8b57da7793a81015cdc8b59e3f7d15d42bffb1fe4e344afbd'), // SimpleSigner(privateKey),
-  resolver: new Resolver(getResolver({ rpcUrl: 'https://mainnet.infura.io/v3/ca1094ed58b546d58a135899d83c959a' }))
-})
+type Signals = NodeJS.Signals | 'EXIT' | 'ERROR' | 'WARN'
 
 const typeDefs = gql`
-  enum ConnectState {
-    pending
-  }
-
-  type Connect {
-    _id: ID!
-    state: ConnectState!
-    token: String
-    qr: String
-  }
-
   type Health {
     ok: Boolean!
+    instanceId: ID!
     version: String!
   }
 
   type Query {
-    health: Health!
-  }
-
-  type Mutation {
-    connect: Connect!
+    health(count:Int!): Health!
   }
 `
 
+const instanceId = uuid.v4();
 const resolvers = {
   Query: {
-    health: () => ({
-      ok: true,
-      version: process.env['npm_package_version']
-    })
-  },
-  Mutation: {
-    connect: async (root: void, args: { connectId: string }, context: unknown) => {
-      console.log('connecting...')
-      console.log(context)
-
-      const requestToken = await credentials.createDisclosureRequest({
-        requested: ['name', 'email', 'country', 'state'],
-        notifications: true,
-        callbackUrl: ''
-      })
-      const query = message.util.messageToURI(requestToken)
-      console.log('query:', JSON.stringify(query, null, 2))
-
-      const uri = message.util.paramsToQueryString(query, { callback_type: 'post' })
-      console.log('uri:', JSON.stringify(uri, null, 2))
-
-      const qr = transport.ui.getImageDataURI(uri)
-      console.log('qr:', JSON.stringify(qr, null, 2))
-
+    health: (root: void, args: { count: number }) => {
+      console.log('health:', JSON.stringify({
+        pid: process.pid,
+        ppid: process.ppid,
+        connected: process.connected,
+        exitCode: process.exitCode,
+        count: args.count,
+        instanceId
+      }))
       return {
-        _id: "abc123",
-        state: "pending",
-        token: "123456789",
-        qr
+        ok: true,
+        instanceId,
+        version: process.env['npm_package_version']
       }
     }
   },
 }
 
 async function main() {
-
-  const publicUrl = await ngrok.connect(4000)
-  console.log('public url:', publicUrl)
-
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    context: () => {
-      return {
-        publicUrl,
-      }
-    }
   })
 
   // The `listen` method launches a web server.
   const { url } = await server.listen({ port: 4000 })
+  console.log('  instance:', instanceId)
   console.log(' local url:', url)
 
-  async function exit(signal?: NodeJS.Signals | 'ERROR', statusCode: number = 0, err?: any) {
-    console.log(`exiting with ${signal} (${statusCode})`)
-    if (err) console.log(err)
-    try {
-      console.log('closing proxy...')
-      await ngrok.kill()
-    } catch (err) {
-      console.log(err)
-    }
-    try {
-      console.log('closing server...')
-      await server.stop()
-    } catch (err) {
-      console.log(err)
-    } finally {
-      process.exit(0)
-    }
+  async function stop() {
+    console.log('stopping...')
+    // console.log((server as any).httpServer)
+    await server.stop()
+    console.log('stopped.')
   }
 
-  // process.on('SIGKILL', (signal) => console.log(signal)) // exit(signal))
+  async function exit(sig?: Signals, statusCode: number = 0, err?: any) {
+    console.log('exiting...')
+    signal(sig, statusCode, err)
+
+    // await stop() // uncomment this line to see orphaning...
+
+    console.log('exit.')
+    process.exit(statusCode)
+  }
+
+  function signal(sig?: Signals, statusCode: number = 0, err?: any) {
+    console.log(`signal ${sig} (${statusCode})`)
+    if (err) console.log(err)
+  }
+
+  // tsc-watch sends this signal
   process.on('SIGTERM', exit)
+
+  process.on('SIGABRT', (sig: Signals, statusCode: number = 0) => {
+    signal(sig, statusCode)
+    stop().then(() => { }).catch(() => { })
+  });
+
+  process.on('SIGALRM', exit)
+  process.on('SIGBREAK', exit)
+  process.on('SIGBUS', exit)
+  process.on('SIGCHLD', exit)
+  process.on('SIGCONT', exit)
+  process.on('SIGFPE', exit)
+  process.on('SIGFPE', exit)
+  process.on('SIGHUP', exit)
+  process.on('SIGILL', exit)
+  process.on('SIGINFO', exit)
   process.on('SIGINT', exit)
+  process.on('SIGIO', exit)
+  process.on('SIGIOT', exit)
+  // process.on('SIGKILL', exit) // this crashes node for some reason
   process.on('SIGLOST', exit)
-  process.on('unhandledRejection', err => exit('ERROR', -1, err))
+  process.on('SIGPIPE', exit)
+  process.on('SIGPOLL', exit)
+  process.on('SIGPROF', exit)
+  process.on('SIGPWR', exit)
+  process.on('SIGQUIT', exit)
+  process.on('SIGSEGV', exit)
+  process.on('SIGSTKFLT', exit)
+  // process.on('SIGSTOP', exit) // crashes node
+  process.on('SIGSYS', exit)
+  process.on('SIGTRAP', exit)
+  process.on('SIGTSTP', exit)
+  process.on('SIGTTIN', exit)
+  process.on('SIGTTOU', exit)
+  process.on('SIGUNUSED', exit)
+  process.on('SIGURG', exit)
+  process.on('SIGUSR1', exit)
+  process.on('SIGUSR2', exit)
+  process.on('SIGVTALRM', exit)
+  process.on('SIGWINCH', signal)
+  process.on('SIGXCPU', exit)
+  process.on('SIGXFSZ', exit)
+
+  process.on('beforeExit', (code) => console.log('before exit:', code))
+  process.on('exit', (code) => signal('EXIT', code, null))
+  process.on('warning', (err) => signal('WARN', -4, err))
+
+  process.on('uncaughtException', err => exit('ERROR', -1, err))
+  process.on('unhandledRejection', err => exit('ERROR', -2, err))
 }
 
 main().catch(err => {

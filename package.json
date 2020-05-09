@@ -1,23 +1,16 @@
 {
-  "name": "avv",
+  "name": "example",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "postinstall": "lerna exec --stream -- npm install",
-    "start": "lerna exec --parallel --stream -- npm start"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/justinmchase/avv.git"
+    "start": "lerna exec --parallel --stream -- npm start",
+    "clean": "lerna exec --parallel --stream -- npm run clean"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/justinmchase/avv/issues"
-  },
-  "homepage": "https://github.com/justinmchase/avv#readme",
   "devDependencies": {
     "lerna": "3.20.2"
   }
