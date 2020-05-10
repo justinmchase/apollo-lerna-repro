@@ -37,6 +37,7 @@ const resolvers = {
 }
 
 async function main() {
+  console.log('starting...')
   const server = new ApolloServer({
     typeDefs,
     resolvers,
