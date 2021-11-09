@@ -16,7 +16,7 @@
     "typescript": "3.8.3"
   },
   "dependencies": {
-    "apollo-server": "2.14.2",
+    "apollo-server": "2.25.3",
     "graphql": "15.0.0",
     "uuid": "^8.0.0"
   }
